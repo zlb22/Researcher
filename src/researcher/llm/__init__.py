@@ -4,7 +4,7 @@ This module provides abstractions and implementations for different LLM provider
 - LLMClient: Abstract base class
 - Message, ToolCall, LLMResponse: Data models
 - AnthropicClient: Anthropic Claude implementation
-- OpenAIClient: OpenAI GPT implementation (TODO)
+- OpenAIClient: OpenAI GPT implementation
 """
 
 from researcher.llm.anthropic_client import AnthropicClient
@@ -15,6 +15,7 @@ from researcher.llm.base import (
     Message,
     ToolCall,
 )
+from researcher.llm.openai_client import OpenAIClient
 
 __all__ = [
     "LLMClient",
@@ -23,4 +24,5 @@ __all__ = [
     "FunctionCall",
     "LLMResponse",
     "AnthropicClient",
+    "OpenAIClient",
 ]

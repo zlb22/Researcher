@@ -7,10 +7,10 @@
 | Phase | 状态 | 完成度 | 说明 |
 |-------|------|--------|------|
 | Phase 1: 核心基础设施 | ✅ 完成 | 100% | Tool 基类、文件工具、Workspace 管理 |
-| Phase 2: Agent 系统 | 🚧 待开始 | 0% | LLM 客户端、BaseAgent、Orchestrator |
+| Phase 2: Agent 系统 | 🚧 进行中 | 40% | LLM 客户端 ✅，BaseAgent ✅，PromptLoader ✅，Orchestrator 待实现 |
 | Phase 3: 助理 Agent | ⬜ 待开始 | 0% | Searcher、Analyzer、Writer、CallAgentTool |
 | Phase 4: Shell 工具 | ⬜ 待开始 | 0% | BashTool、进程管理 |
-| Phase 5: 完善和优化 | ⬜ 待开始 | 0% | OpenAI 客户端、配置系统、CLI |
+| Phase 5: 完善和优化 | ⬜ 待开始 | 0% | 配置系统、CLI（OpenAI 客户端 ✅） |
 
 **整体统计**：
 - 源代码：970 行
@@ -647,15 +647,15 @@ src/researcher/
 
 ### Phase 2: Agent 系统（优先级 P0）
 
-1. ⬜ LLM 客户端抽象
-   - `LLMClient` 基类
-   - `AnthropicClient` 实现
-   - Message 格式转换
-2. ⬜ `BaseAgent` 实现
-   - Agent 循环逻辑
-   - Tool 调用和结果处理
-   - 消息历史管理
-3. ⬜ System Prompt 加载器
+1. ✅ LLM 客户端抽象
+   - ✅ `LLMClient` 基类
+   - ✅ `AnthropicClient` 实现
+   - ✅ Message 格式转换 + OpenAI 兼容客户端
+2. ✅ `BaseAgent` 实现
+   - ✅ Agent 循环逻辑
+   - ✅ Tool 调用和结果处理
+   - ✅ 消息历史管理（`src/researcher/core/agent.py`）
+3. ✅ System Prompt 加载器（`PromptLoader`）
 4. ⬜ 简单的 Orchestrator（测试用）
 
 ### Phase 3: 助理 Agent（优先级 P1）
@@ -674,7 +674,7 @@ src/researcher/
 
 ### Phase 5: 完善和优化（优先级 P2）
 
-1. ⬜ OpenAI 客户端实现
+1. ✅ OpenAI 客户端实现（支持 OPENAI_BASE_URL/OPENAI_MODEL 环境变量）
 2. ⬜ 配置文件系统
 3. ⬜ CLI 入口
 4. ⬜ 单元测试
@@ -706,11 +706,11 @@ src/researcher/
 .
 ├── src/researcher/          # Main package source code
 ├── tests/                   # Test files
-├── ref/                     # Reference implementations (Mini-Agent)
-├── pyproject.toml          # Project configuration and dependencies
-├── CLAUDE.md               # Design documentation and implementation guide
-├── AGENTS.md               # Agent design documentation
-└── .venv/                  # Virtual environment (created by uv)
+├── examples/                # Example scripts
+├── .env.example             # Sample environment configuration
+├── pyproject.toml           # Project configuration and dependencies
+├── CLAUDE.md                # Design documentation and implementation guide
+└── uv.lock                  # Dependency lockfile (managed by uv)
 ```
 
 ### Core Implementation (`src/researcher/`)
@@ -738,10 +738,10 @@ src/researcher/
 │   ├── analyzer.py         # ⬜ Analyzer Agent (TODO - Phase 3)
 │   └── writer.py           # ⬜ Writer Agent (TODO - Phase 3)
 ├── llm/
-│   ├── __init__.py         # ⬜ LLM module exports
-│   ├── base.py             # ⬜ LLMClient abstract base class (TODO - Phase 2)
-│   ├── anthropic_client.py # ⬜ Anthropic implementation (TODO - Phase 2)
-│   └── openai_client.py    # ⬜ OpenAI implementation (TODO - Phase 5)
+│   ├── __init__.py         # ✅ LLM module exports
+│   ├── base.py             # ✅ LLMClient abstract base class
+│   ├── anthropic_client.py # ✅ Anthropic implementation
+│   └── openai_client.py    # ✅ OpenAI implementation (OpenAI-compatible)
 ├── prompts/
 │   ├── __init__.py         # ⬜ Prompts module exports
 │   ├── orchestrator.txt    # ⬜ Orchestrator system prompt (TODO - Phase 2)
@@ -854,3 +854,7 @@ uv run ruff format .
 uv run ruff check --fix .
 ```
 
+### Environment Variables
+
+- `.env.example` 提供了完整的环境变量模板（ANTHROPIC_API_KEY、OPENAI_API_KEY、OPENAI_BASE_URL、OPENAI_MODEL 等）
+- 复制为 `.env` 或直接导出到 shell，即可在示例与客户端中自动读取配置

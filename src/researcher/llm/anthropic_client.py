@@ -3,6 +3,7 @@
 This module provides an LLM client for Anthropic's Claude models.
 """
 
+import os
 from typing import Any
 
 from anthropic import AsyncAnthropic
@@ -26,27 +27,49 @@ class AnthropicClient(LLMClient):
     - Tool calling (function calling)
     - Streaming (future)
 
+    Environment Variables:
+    - ANTHROPIC_API_KEY: API key
+    - ANTHROPIC_MODEL: Default model (default: claude-3-5-sonnet-20241022)
+
     Example:
         >>> client = AnthropicClient(api_key="sk-ant-...")
         >>> response = await client.generate(
-        ...     messages=[Message(role="user", content="Hello")],
-        ...     model="claude-3-5-sonnet-20241022"
+        ...     messages=[Message(role="user", content="Hello")]
         ... )
     """
 
+    DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+
     def __init__(
         self,
-        api_key: str,
-        model: str = "claude-3-5-sonnet-20241022",
+        api_key: str | None = None,
+        model: str | None = None,
         max_tokens: int = 8192,
     ):
         """Initialize Anthropic client.
 
         Args:
-            api_key: Anthropic API key
-            model: Model name (default: claude-3-5-sonnet-20241022)
+            api_key: Anthropic API key. If None, reads from ANTHROPIC_API_KEY
+            model: Model name. If None, reads from ANTHROPIC_MODEL,
+                  defaults to "claude-3-5-sonnet-20241022"
             max_tokens: Maximum tokens to generate (default: 8192)
+
+        Raises:
+            ValueError: If api_key is not provided and ANTHROPIC_API_KEY is not set
         """
+        # Handle API key
+        if api_key is None:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if api_key is None:
+                raise ValueError(
+                    "API key required. Set ANTHROPIC_API_KEY environment variable "
+                    "or pass api_key parameter."
+                )
+
+        # Handle model
+        if model is None:
+            model = os.getenv("ANTHROPIC_MODEL", self.DEFAULT_MODEL)
+
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
