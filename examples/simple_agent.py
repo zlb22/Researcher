@@ -18,6 +18,7 @@ import tempfile
 from researcher.core.agent import BaseAgent
 from researcher.core.workspace import WorkspaceManager
 from researcher.llm.anthropic_client import AnthropicClient
+from researcher.tools.control_tools import CompleteTool
 from researcher.tools.file_tools import EditTool, ReadTool, WriteTool
 from researcher.utils.logger import configure_logger
 from researcher.utils.prompt_loader import PromptLoader
@@ -61,6 +62,7 @@ async def main():
             ReadTool(workspace),
             WriteTool(workspace),
             EditTool(workspace),
+            CompleteTool(),
         ]
 
         # 3. Load system prompt

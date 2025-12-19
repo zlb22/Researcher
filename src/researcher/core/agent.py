@@ -121,16 +121,22 @@ class BaseAgent:
                 if response.content:
                     logger.info(f"[{self.agent_type}] Assistant: {response.content[:200]}...")
 
-                # If no tool calls, agent is done
+                # If no tool calls, treat as abnormal termination
+                # Agent should explicitly call complete_task to finish
                 if not response.tool_calls:
-                    logger.info(f"[{self.agent_type}] Task completed in {step} steps")
+                    logger.warning(
+                        f"[{self.agent_type}] Agent stopped without calling complete_task "
+                        f"(abnormal termination)"
+                    )
                     return ToolResult(
-                        success=True,
+                        success=False,
                         content=response.content,
+                        error="Agent did not explicitly complete the task (missing complete_task call)",
                         metadata={
                             "agent_type": self.agent_type,
                             "steps_used": step,
                             "output_files": output_files,
+                            "abnormal_termination": True,
                         },
                     )
 
@@ -172,6 +178,23 @@ class BaseAgent:
                         )
                     else:
                         logger.warning(f"[{self.agent_type}] Tool error: {tool_result.error}")
+
+                    # Check if this is a complete_task call
+                    if function_name == "complete_task":
+                        # Task explicitly completed - return the result directly
+                        logger.info(
+                            f"[{self.agent_type}] Task explicitly completed "
+                            f"(success={tool_result.success}) in {step} steps"
+                        )
+                        # Add metadata about agent execution
+                        tool_result.metadata.update(
+                            {
+                                "agent_type": self.agent_type,
+                                "steps_used": step,
+                                "output_files": output_files,
+                            }
+                        )
+                        return tool_result
 
                     # Add tool result to message history
                     tool_message = Message(
