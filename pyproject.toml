@@ -1,0 +1,57 @@
+# pyproject.toml
+[project]
+name = "researcher"
+version = "0.1.0"
+description = "A minimal-scaffold deep research system powered by multi-agent collaboration"
+authors = [
+    { name = "zlbcodelife" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0.0",
+    "loguru>=0.7.0",
+    "anthropic>=0.40.0",
+    "openai>=1.50.0",
+    "tavily-python>=0.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/researcher"]
+
+[tool.ruff]
+# 设置每行最大长度，防止 Prompt 太长导致横向滚动
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# 选择检查规则：E(错误), F(逻辑漏洞), I(排序), N(命名规范)
+select = ["E", "F", "I", "N"]
+# 针对 Agent 工程师的特别规则
+ignore = ["E501","F401", "F841"] # 允许 Prompt 字符串超长，不强制折行
+
+[tool.ruff.lint.isort]
+# 自动统一 import 的顺序（先标准库，再第三方库，最后本地代码）
+force-single-line = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.14.10",
+]
