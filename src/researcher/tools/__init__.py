@@ -5,9 +5,10 @@ This module provides various tools that agents can use:
 - Control tools: CompleteTool
 - Search tools: TavilySearchTool
 - Bash tools: BashTool
-- Agent tools: (TODO)
+- Agent tools: CallAgentTool
 """
 
+from researcher.tools.agent_tool import CallAgentTool
 from researcher.tools.bash_tool import BashTool
 from researcher.tools.control_tools import CompleteTool
 from researcher.tools.file_tools import EditTool, ReadTool, WriteTool
@@ -20,4 +21,5 @@ __all__ = [
     "CompleteTool",
     "TavilySearchTool",
     "BashTool",
+    "CallAgentTool",
 ]
