@@ -211,10 +211,20 @@ class CallAgentTool(Tool):
                 max_steps=max_steps,
             )
         elif agent_type == "analyzer":
-            # TODO: Implement analyzer agent
-            raise ValueError("Analyzer agent not yet implemented")
+            from researcher.agents.analyzer import create_analyzer
+
+            return create_analyzer(
+                llm_client=self.llm_client,
+                workspace_dir=self.workspace_dir,
+                max_steps=max_steps,
+            )
         elif agent_type == "writer":
-            # TODO: Implement writer agent
-            raise ValueError("Writer agent not yet implemented")
+            from researcher.agents.writer import create_writer
+
+            return create_writer(
+                llm_client=self.llm_client,
+                workspace_dir=self.workspace_dir,
+                max_steps=max_steps,
+            )
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
