@@ -1,5 +1,8 @@
 # Reference implementations
 ref/
+workspace/
+
+.env
 
 # Python
 __pycache__/

@@ -23,7 +23,10 @@ WORKFLOW GUIDANCE:
 2. Refine searches based on initial findings
 3. Organize results as you go (don't wait until the end)
 4. If initial searches are insufficient, try different query strategies
-5. Use bash commands (ls, grep, cat) to explore what you've already gathered
+5. Use bash commands to explore workspace EFFICIENTLY:
+   - Use `find . -type f` to see all files at once
+   - Use `ls -R` for recursive directory view
+   - Avoid calling `ls` multiple times on the same directory
 
 RETURN FORMAT:
 When you call complete_task, your summary should be concise (< 500 tokens) and include:

@@ -1,0 +1,542 @@
+"""Main CLI entry point for the Researcher system.
+
+Provides command-line interface with real-time visualization.
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from uuid import uuid4
+
+import click
+from dotenv import load_dotenv
+from loguru import logger
+
+from researcher.agents.orchestrator import create_orchestrator
+from researcher.cli.ui import ResearchUIDisplay
+from researcher.core.agent import BaseAgent
+from researcher.llm.anthropic_client import AnthropicClient
+from researcher.llm.openai_client import OpenAIClient
+from researcher.utils.trace_logger import AgentTraceLogger
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Monkey-patch BaseAgent to support UI callbacks
+original_run = BaseAgent.run
+
+
+async def run_with_ui(self, task_description: str, ui: ResearchUIDisplay | None = None):
+    """Enhanced run method with UI callbacks.
+
+    Args:
+        task_description: Task description
+        ui: Optional UI display for real-time updates
+
+    Returns:
+        ToolResult
+    """
+    # Log agent start
+    if ui:
+        ui.log_agent_start(self.agent_type, task_description)
+
+    # Store UI reference for tool execution callbacks
+    self._ui = ui
+
+    # Call original run method
+    result = await original_run(self, task_description)
+
+    # Log agent completion
+    if ui:
+        output_files = result.metadata.get("output_files", [])
+        ui.log_agent_complete(self.agent_type, result.success, result.content)
+
+    return result
+
+
+# Store original execute methods for tools
+tool_execute_originals = {}
+
+
+def wrap_tool_execute(
+    tool,
+    ui: ResearchUIDisplay | None,
+    agent_type: str,
+    trace_logger: AgentTraceLogger | None = None,
+):
+    """Wrap tool execute method to log to UI and trace logger.
+
+    Args:
+        tool: Tool instance
+        ui: UI display
+        agent_type: Agent type for logging
+        trace_logger: Optional trace logger for framework analysis
+    """
+    if tool.name in tool_execute_originals:
+        return  # Already wrapped
+
+    original_execute = tool.execute
+    tool_execute_originals[tool.name] = original_execute
+
+    async def execute_with_ui(**kwargs):
+        # Log tool call to UI and trace
+        if ui:
+            ui.log_tool_call(agent_type, tool.name, kwargs)
+        if trace_logger:
+            trace_logger.log_tool_call(agent_type, tool.name, kwargs)
+
+        # Execute tool
+        try:
+            result = await original_execute(**kwargs)
+
+            # Log tool result - use error field if content is empty and failed
+            display_content = result.content
+            if not result.success and not display_content and result.error:
+                display_content = f"Error: {result.error}"
+
+            if ui:
+                ui.log_tool_result(agent_type, tool.name, result.success, display_content)
+
+                # Track file operations
+                if tool.name == "write_file" and result.success:
+                    filepath = kwargs.get("filepath", "")
+                    ui.log_file_operation("create", filepath)
+                elif tool.name == "edit_file" and result.success:
+                    filepath = kwargs.get("filepath", "")
+                    ui.log_file_operation("modify", filepath)
+
+            if trace_logger:
+                trace_logger.log_tool_result(agent_type, tool.name, result.success, display_content)
+
+            return result
+        except Exception as e:
+            error_msg = f"Exception: {str(e)}"
+            if ui:
+                ui.log_tool_result(agent_type, tool.name, False, error_msg)
+            if trace_logger:
+                trace_logger.log_tool_result(agent_type, tool.name, False, error_msg)
+            raise
+
+    tool.execute = execute_with_ui
+
+
+def setup_ui_integration(
+    agent: BaseAgent,
+    ui: ResearchUIDisplay | None,
+    trace_logger: AgentTraceLogger | None = None,
+):
+    """Setup UI integration for an agent.
+
+    Args:
+        agent: Agent instance
+        ui: UI display
+        trace_logger: Optional trace logger
+    """
+    # Wrap all tool execute methods
+    for tool in agent.tools.values():
+        wrap_tool_execute(tool, ui, agent.agent_type, trace_logger)
+
+        # Special handling for call_agent tool - store UI and trace logger references
+        if tool.name == "call_agent":
+            tool._ui = ui
+            tool._trace_logger = trace_logger
+
+    # Add references to agent
+    agent._ui = ui
+    agent._trace_logger = trace_logger
+
+
+@click.group()
+@click.version_option(version="0.1.0")
+def cli():
+    """Researcher - Deep Research System powered by multi-agent collaboration.
+
+    A minimal-scaffold research system where agents dynamically decide
+    how to search, analyze, and write based on the research question.
+    """
+    pass
+
+
+@cli.command()
+@click.argument("topic")
+@click.option(
+    "--workspace",
+    "-w",
+    type=click.Path(),
+    help="Workspace directory (default: ./workspace/<auto-generated-id>)",
+)
+@click.option(
+    "--max-steps",
+    "-s",
+    type=int,
+    default=100,
+    help="Maximum orchestrator steps (default: 100)",
+)
+@click.option(
+    "--llm",
+    type=click.Choice(["anthropic", "openai"], case_sensitive=False),
+    default="anthropic",
+    help="LLM provider (default: anthropic)",
+)
+@click.option(
+    "--model",
+    "-m",
+    help="Model name (default: provider default)",
+)
+@click.option(
+    "--no-ui",
+    is_flag=True,
+    help="Disable real-time UI visualization",
+)
+@click.option(
+    "--debug",
+    "-d",
+    is_flag=True,
+    help="Enable debug mode (verbose logging and full error details)",
+)
+def research(
+    topic: str,
+    workspace: str | None,
+    max_steps: int,
+    llm: str,
+    model: str | None,
+    no_ui: bool,
+    debug: bool,
+):
+    """Start a new research project on the given TOPIC.
+
+    Example:
+        researcher research "quantum computing applications in finance"
+    """
+    # Configure logger based on debug flag
+    if debug:
+        logger.remove()  # Remove default handler
+        logger.add(
+            sys.stderr,
+            format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+            level="DEBUG",
+        )
+        logger.debug("Debug mode enabled")
+
+    # Generate workspace directory if not provided
+    if workspace is None:
+        research_id = str(uuid4())[:8]
+        workspace_dir = Path.cwd() / "workspace" / research_id
+    else:
+        workspace_dir = Path(workspace)
+
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write research question to file
+    question_file = workspace_dir / "question.txt"
+    question_file.write_text(topic)
+
+    # Setup UI display (unless disabled) - do this early for error reporting
+    ui = None if no_ui else ResearchUIDisplay(workspace_dir, debug=debug)
+
+    # Setup trace logger (in debug mode)
+    trace_logger = AgentTraceLogger(workspace_dir, enabled=debug) if debug else None
+
+    # Run research
+    try:
+        # Create LLM client (might fail if API key not set)
+        if llm == "anthropic":
+            llm_client = AnthropicClient(model=model)
+        else:  # openai
+            llm_client = OpenAIClient(model=model)
+
+        # Create orchestrator agent
+        orchestrator = create_orchestrator(
+            llm_client=llm_client,
+            workspace_dir=workspace_dir,
+            max_steps=max_steps,
+        )
+
+        # Setup UI and trace logging integration
+        setup_ui_integration(orchestrator, ui, trace_logger)
+
+        # Log orchestrator start
+        if trace_logger:
+            trace_logger.log_agent_start("orchestrator", topic, parent_agent=None)
+
+        # Start UI
+        if ui:
+            ui.start(topic)
+        result = asyncio.run(run_with_ui(orchestrator, topic, ui))
+
+        # Log orchestrator completion
+        if trace_logger:
+            steps_used = result.metadata.get("steps_used", 0)
+            trace_logger.log_agent_complete(
+                "orchestrator", result.success, result.content, steps_used
+            )
+            # Finalize trace and write summary
+            trace_logger.finalize()
+
+        # Stop UI
+        if ui:
+            ui.stop()
+
+        # Display final summary
+        if ui:
+            output_files = result.metadata.get("output_files", [])
+            ui.print_final_summary(result.success, result.content, output_files)
+
+            # Show trace files in debug mode
+            if debug:
+                click.echo("\n[Debug] Trace files saved:")
+                click.echo(f"  - {workspace_dir / 'agent_trace.jsonl'}")
+                click.echo(f"  - {workspace_dir / 'agent_trace.md'}")
+        else:
+            # Simple text output
+            click.echo("\n" + "=" * 60)
+            click.echo("Research Complete")
+            click.echo("=" * 60)
+            click.echo(f"\nSuccess: {result.success}")
+            click.echo(f"\nSummary:\n{result.content}")
+            if result.metadata.get("output_files"):
+                click.echo("\nOutput Files:")
+                for filepath in result.metadata["output_files"]:
+                    click.echo(f"  - {filepath}")
+            click.echo()
+
+        # Exit with appropriate code
+        sys.exit(0 if result.success else 1)
+
+    except KeyboardInterrupt:
+        if ui:
+            ui.stop()
+        click.echo("\n\nResearch interrupted by user.")
+        sys.exit(130)
+
+    except Exception as e:
+        if ui:
+            ui.print_error(f"Research failed: {str(e)}")
+        else:
+            click.echo(f"\nError: {str(e)}", err=True)
+
+        logger.exception("Research failed with exception")
+        sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--workspace",
+    "-w",
+    type=click.Path(exists=True),
+    required=True,
+    help="Workspace directory to continue from",
+)
+@click.option(
+    "--task",
+    "-t",
+    help="Additional task or refinement request",
+)
+@click.option(
+    "--max-steps",
+    "-s",
+    type=int,
+    default=100,
+    help="Maximum orchestrator steps (default: 100)",
+)
+@click.option(
+    "--llm",
+    type=click.Choice(["anthropic", "openai"], case_sensitive=False),
+    default="anthropic",
+    help="LLM provider (default: anthropic)",
+)
+@click.option(
+    "--model",
+    "-m",
+    help="Model name (default: provider default)",
+)
+@click.option(
+    "--no-ui",
+    is_flag=True,
+    help="Disable real-time UI visualization",
+)
+@click.option(
+    "--debug",
+    "-d",
+    is_flag=True,
+    help="Enable debug mode (verbose logging and full error details)",
+)
+def continue_research(
+    workspace: str,
+    task: str | None,
+    max_steps: int,
+    llm: str,
+    model: str | None,
+    no_ui: bool,
+    debug: bool,
+):
+    """Continue an existing research project.
+
+    Example:
+        researcher continue -w ./workspace/abc123 -t "Add more details on risks"
+    """
+    # Configure logger based on debug flag
+    if debug:
+        logger.remove()  # Remove default handler
+        logger.add(
+            sys.stderr,
+            format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+            level="DEBUG",
+        )
+        logger.debug("Debug mode enabled")
+
+    workspace_dir = Path(workspace)
+
+    # Read original question
+    question_file = workspace_dir / "question.txt"
+    if not question_file.exists():
+        click.echo("Error: Not a valid workspace (question.txt not found)", err=True)
+        sys.exit(1)
+
+    original_question = question_file.read_text().strip()
+
+    # Build continuation task
+    if task:
+        continuation_task = (
+            f"Continue research on: {original_question}\n\n"
+            f"Additional task: {task}\n\n"
+            f"Review existing files in the workspace and build upon them."
+        )
+    else:
+        continuation_task = (
+            f"Continue and refine research on: {original_question}\n\n"
+            f"Review existing files and identify areas for improvement or expansion."
+        )
+
+    # Setup UI display (unless disabled) - do this early for error reporting
+    ui = None if no_ui else ResearchUIDisplay(workspace_dir, debug=debug)
+
+    # Setup trace logger (in debug mode)
+    trace_logger = AgentTraceLogger(workspace_dir, enabled=debug) if debug else None
+
+    # Run research
+    try:
+        # Create LLM client (might fail if API key not set)
+        if llm == "anthropic":
+            llm_client = AnthropicClient(model=model)
+        else:  # openai
+            llm_client = OpenAIClient(model=model)
+
+        # Create orchestrator agent
+        orchestrator = create_orchestrator(
+            llm_client=llm_client,
+            workspace_dir=workspace_dir,
+            max_steps=max_steps,
+        )
+
+        # Setup UI and trace logging integration
+        setup_ui_integration(orchestrator, ui, trace_logger)
+
+        # Log orchestrator start
+        if trace_logger:
+            trace_logger.log_agent_start("orchestrator", continuation_task, parent_agent=None)
+
+        # Start UI
+        if ui:
+            ui.start(f"Continue: {original_question}")
+        result = asyncio.run(run_with_ui(orchestrator, continuation_task, ui))
+
+        # Log orchestrator completion
+        if trace_logger:
+            steps_used = result.metadata.get("steps_used", 0)
+            trace_logger.log_agent_complete(
+                "orchestrator", result.success, result.content, steps_used
+            )
+            # Finalize trace and write summary
+            trace_logger.finalize()
+
+        # Stop UI
+        if ui:
+            ui.stop()
+
+        # Display final summary
+        if ui:
+            output_files = result.metadata.get("output_files", [])
+            ui.print_final_summary(result.success, result.content, output_files)
+
+            # Show trace files in debug mode
+            if debug:
+                click.echo("\n[Debug] Trace files saved:")
+                click.echo(f"  - {workspace_dir / 'agent_trace.jsonl'}")
+                click.echo(f"  - {workspace_dir / 'agent_trace.md'}")
+        else:
+            # Simple text output
+            click.echo("\n" + "=" * 60)
+            click.echo("Research Continuation Complete")
+            click.echo("=" * 60)
+            click.echo(f"\nSuccess: {result.success}")
+            click.echo(f"\nSummary:\n{result.content}")
+            click.echo()
+
+        # Exit with appropriate code
+        sys.exit(0 if result.success else 1)
+
+    except KeyboardInterrupt:
+        if ui:
+            ui.stop()
+        click.echo("\n\nResearch interrupted by user.")
+        sys.exit(130)
+
+    except Exception as e:
+        if ui:
+            ui.print_error(f"Research failed: {str(e)}")
+        else:
+            click.echo(f"\nError: {str(e)}", err=True)
+
+        logger.exception("Research continuation failed with exception")
+        sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--workspace-root",
+    "-w",
+    type=click.Path(exists=True),
+    default="./workspace",
+    help="Root workspace directory (default: ./workspace)",
+)
+def list_research(workspace_root: str):
+    """List all research projects in the workspace.
+
+    Example:
+        researcher list
+    """
+    workspace_path = Path(workspace_root)
+
+    if not workspace_path.exists():
+        click.echo("No workspace directory found.")
+        return
+
+    # Find all research directories (contain question.txt)
+    research_dirs = []
+    for item in workspace_path.iterdir():
+        if item.is_dir():
+            question_file = item / "question.txt"
+            if question_file.exists():
+                question = question_file.read_text().strip()
+                research_dirs.append((item.name, question))
+
+    if not research_dirs:
+        click.echo("No research projects found.")
+        return
+
+    click.echo("\n" + "=" * 60)
+    click.echo("Research Projects")
+    click.echo("=" * 60)
+    click.echo()
+
+    for dir_name, question in sorted(research_dirs):
+        click.echo(f"[{dir_name}]")
+        click.echo(f"  Question: {question[:80]}...")
+        click.echo(f"  Path: {workspace_path / dir_name}")
+        click.echo()
+
+
+if __name__ == "__main__":
+    cli()

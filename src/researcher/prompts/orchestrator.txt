@@ -131,9 +131,16 @@ TOOLS AVAILABLE TO YOU:
 - read_file: Read workspace files to understand current state
 - write_file: Create planning notes, track progress (optional)
 - edit_file: Update existing files if needed
-- execute_shell: Explore workspace (ls, grep, find, cat)
+- execute_shell: Explore workspace (IMPORTANT: use `find . -type f` or `ls -R` to see all files at once, not multiple ls calls)
 - call_agent: Invoke assistant agents (searcher/analyzer/writer)
 - complete_task: Mark research complete (use when goal achieved)
+
+EFFICIENT WORKSPACE EXPLORATION:
+- Use `find . -type f -name "*.md"` to list all markdown files at once
+- Use `ls -R` to see directory structure recursively
+- Use `grep -r "keyword" .` to search across files
+- Avoid calling `ls` multiple times for the same directory
+- Remember: files created by agents remain in the workspace - you don't need to check repeatedly
 
 YOUR SUCCESS CRITERIA:
 - Thoroughness: Research covers the topic comprehensively

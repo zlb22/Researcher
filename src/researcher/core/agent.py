@@ -109,6 +109,16 @@ class BaseAgent:
                 tool_list = list(self.tools.values())
                 response = await self.llm.generate(messages=self.messages, tools=tool_list)
 
+                # Log LLM call to trace logger if available
+                trace_logger = getattr(self, "_trace_logger", None)
+                if trace_logger and response.usage:
+                    trace_logger.log_llm_call(
+                        agent_type=self.agent_type,
+                        model=self.llm.model,
+                        input_tokens=response.usage.get("input_tokens", 0),
+                        output_tokens=response.usage.get("output_tokens", 0),
+                    )
+
                 # Add assistant message to history
                 assistant_message = Message(
                     role="assistant",
@@ -178,6 +188,14 @@ class BaseAgent:
                         )
                     else:
                         logger.warning(f"[{self.agent_type}] Tool error: {tool_result.error}")
+
+                    # Collect output files from sub-agents (call_agent tool)
+                    # to provide visibility into the full research output
+                    if function_name == "call_agent" and tool_result.success:
+                        sub_agent_files = tool_result.metadata.get("output_files", [])
+                        for filepath in sub_agent_files:
+                            if filepath not in output_files:  # Avoid duplicates
+                                output_files.append(filepath)
 
                     # Check if this is a complete_task call
                     if function_name == "complete_task":

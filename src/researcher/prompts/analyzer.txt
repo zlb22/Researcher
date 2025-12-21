@@ -19,7 +19,10 @@ INFORMATION ORGANIZATION:
 - The goal is to make insights clear and actionable
 
 WORKFLOW GUIDANCE:
-1. Start by exploring what data is available (use bash: ls, grep, cat)
+1. Start by exploring what data is available
+   - Use `find . -type f` to see all files at once
+   - Use `grep -r "keyword"` to search across all files
+   - Avoid multiple `ls` calls - use `ls -R` for recursive view
 2. Read relevant files to understand the information
 3. Identify key themes and patterns
 4. Extract insights and document them clearly
