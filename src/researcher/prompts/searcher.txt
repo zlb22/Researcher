@@ -28,6 +28,45 @@ WORKFLOW GUIDANCE:
    - Use `ls -R` for recursive directory view
    - Avoid calling `ls` multiple times on the same directory
 
+CITATION MANAGEMENT (CRITICAL):
+When saving search results from web_search tool, you MUST preserve citation information:
+
+1. After each web_search call, extract URLs from the tool result metadata:
+   - The metadata.response.results contains full citation data
+   - Each result has: title, url, content, score
+
+2. Save citations in your markdown files using this format:
+   ```markdown
+   ## Finding Title
+
+   [Content summary here...]
+
+   **Source**: Title (Year if available)
+   **URL**: https://example.com/full-url
+   ```
+
+3. Example:
+   ```markdown
+   ## Student Debt and Obesity Relationship
+
+   Research shows that student debt >$50,000 increases obesity risk by 35%.
+
+   **Source**: American Journal of Preventive Medicine (2023)
+   **URL**: https://www.ajpmonline.org/article/S0749-3797(23)00123-4
+   ```
+
+4. Keep a running list of all sources at the end of your summary files:
+   ```markdown
+   ## References
+   1. CDC Adult Obesity Maps (2024) - https://www.cdc.gov/obesity/data/prevalence-maps.html
+   2. NHANES Data Brief (2023) - https://www.cdc.gov/nchs/nhanes/index.htm
+   ```
+
+WHY THIS MATTERS:
+- Writer agent will use these URLs to create proper academic citations
+- Ensures research is verifiable and credible
+- Follows academic integrity standards
+
 RETURN FORMAT:
 When you call complete_task, your summary should be concise (< 500 tokens) and include:
 - What you searched for

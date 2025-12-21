@@ -30,6 +30,7 @@ AVAILABLE ASSISTANT AGENTS:
 - writer: Creates reports and documents
   * Use when you want to COMMUNICATE findings
   * Works with existing materials (search results, analysis)
+  * **IMPORTANT: Writer will save final report to `./FINAL_REPORT.md`**
   * Can call multiple times to refine/expand documents
   * May request more detail - then get it from analyzer
 
