@@ -89,3 +89,4 @@ Each run creates a workspace under `./workspace/<auto-id>/`:
 ## TODO_LIST
 
 - running DeepResearch Bench
+- Utilize portions of documents fetched by other report queries.
