@@ -13,9 +13,6 @@ A minimal-scaffold deep research system powered by multi‑agent collaboration (
     style="max-width: 960px; border-radius: 8px;"
   />
 </p>
-<p align="center">
-  <a href="resaercher-demo.mp4">Download MP4</a>
-</p>
 
 ## Motivation
 
