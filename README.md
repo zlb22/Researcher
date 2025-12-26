@@ -4,20 +4,16 @@
 
 A minimal‑scaffold deep research system powered by multi‑agent collaboration (Orchestrator, Searcher, Analyzer, Writer) with a real‑time terminal UI.
 
-<!-- Hero Demo: auto-play, loop, muted so it can start automatically on GitHub -->
+<!-- Hero Demo: GIF auto-plays and loops on GitHub -->
 <p align="center">
-  <video
-    src="resaercher-demo.mp4"
+  <img
+    src="docs/demo.gif"
+    alt="Researcher CLI Demo"
     width="100%"
     style="max-width: 960px; border-radius: 8px;"
-    autoplay
-    loop
-    muted
-    playsinline
-  >
-    Your browser does not support the video tag.
-  </video>
-  <br />
+  />
+</p>
+<p align="center">
   <a href="resaercher-demo.mp4">Download MP4</a>
 </p>
 
@@ -73,6 +69,17 @@ The result is a minimal‑scaffold, tool‑based multi‑agent system that lever
     - `uv run researcher continue-research -w ./workspace/<id> -t "Add more details"`
   - List projects:
     - `uv run researcher list-research`
+
+## Examples
+
+- Minimal run with UI:
+  - `uv run researcher research "Python async/await best practices"`
+- Custom workspace and more steps:
+  - `uv run researcher research "RAG best practices" -w ./workspace/rag-demo -s 50`
+- Export report to stdout (pipe to file):
+  - `uv run researcher research "topic overview" -r - | tee report.md`
+- Continue an existing project with a refinement task:
+  - `uv run researcher continue-research -w ./workspace/<id> -t "Add more details"`
 
 ## What You Get
 
