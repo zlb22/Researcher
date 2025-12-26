@@ -1,14 +1,36 @@
-# Reference implementations
+# ============================================
+# Researcher - Git Ignore Rules
+# ============================================
+
+# ============================================
+# Project Specific
+# ============================================
+# Reference implementations (not for release)
 ref/
+
+# Workspace directories (user-generated research data)
 workspace/
 
+# Environment variables (contains API keys)
 .env
+.env.local
+.env.*.local
 
+# Claude Code CLI configuration
+.claude/
+
+# ============================================
 # Python
+# ============================================
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# C extensions
 *.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -22,32 +44,150 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual Environment
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================
+# Virtual Environments
+# ============================================
 .venv/
 venv/
 ENV/
 env/
+.virtualenv/
 
+# ============================================
+# UV Package Manager
+# ============================================
+.uv_cache/
+.uv/
+
+# ============================================
 # Testing
+# ============================================
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.nox/
+.hypothesis/
+*.cover
+*.py,cover
+.cache
+nosetests.xml
+coverage.xml
+*.coveragerc
 
-# IDE
+# ============================================
+# Linting & Formatting
+# ============================================
+.ruff_cache/
+.mypy_cache/
+.pytype/
+.pyre/
+.pyright/
+dmypy.json
+
+# ============================================
+# IDEs and Editors
+# ============================================
+# VSCode
 .vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
 .idea/
+*.iml
+*.iws
+
+# Vim
 *.swp
 *.swo
+*~
+.vim/
+
+# Emacs
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# Operating System
+# ============================================
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# Logs
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+
+# ============================================
+# Logs and Databases
+# ============================================
 *.log
+*.sql
+*.sqlite
+*.sqlite3
+*.db
 
-# Environment variables
-.env
-.env.local
+# ============================================
+# Temporary Files
+# ============================================
+*.tmp
+*.temp
+*.bak
+
+# ============================================
+# Documentation Build
+# ============================================
+docs/_build/
+docs/.doctrees/
+site/
+
+# ============================================
+# Jupyter Notebook
+# ============================================
+.ipynb_checkpoints
+*.ipynb
+
+CITATION_MANAGEMENT_DESIGN.md
+CLAUDE.md
+TRACE_LOGGER_GUIDE.md
+
+uv.lock
+
+# ============================================
+# Project Documentation (Optional)
+# ============================================
+# Uncomment if you don't want to track these design docs
+# CITATION_MANAGEMENT_DESIGN.md
+# TRACE_LOGGER_GUIDE.md

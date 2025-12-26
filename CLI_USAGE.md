@@ -36,6 +36,12 @@ uv run researcher research "comprehensive analysis of renewable energy" -s 200
 
 # Without UI (simple text output)
 uv run researcher research "quick topic overview" --no-ui
+
+# Export final report to a specific path
+uv run researcher research "AI agents in production" -r ./report.md
+
+# Print final report to stdout (useful for piping)
+uv run researcher research "RAG best practices" -r -
 ```
 
 ### 2. Continue Existing Research
@@ -51,6 +57,9 @@ uv run researcher continue-research -w ./workspace/abc12345 -t "Add more details
 
 # With different provider
 uv run researcher continue-research -w ./workspace/abc12345 --llm openai
+
+# Export the latest final report after continuation
+uv run researcher continue-research -w ./workspace/abc12345 -t "Polish the executive summary" -r ./final.md
 ```
 
 ### 3. List Research Projects
@@ -171,6 +180,16 @@ uv run researcher continue-research \
 uv run researcher research "topic overview" --no-ui > results.txt 2>&1
 ```
 
+### Example 5: Export Final Report
+
+```bash
+# Save the final report markdown to a chosen path
+uv run researcher research "Prompt engineering techniques" -r ./out/FINAL.md
+
+# Stream the final report to stdout (combine with tools like tee)
+uv run researcher research "LLM evaluation methods" -r - | tee report.md
+```
+
 ## Workflow Structure
 
 The CLI supports the dynamic, non-linear research workflow:
@@ -198,6 +217,10 @@ workspace/<research-id>/
 │   └── ...
 └── report.md                # Final report (if generated)
 ```
+
+Note on reports:
+- By default, the Writer agent saves the single comprehensive report as `./FINAL_REPORT.md` at the workspace root.
+- Use `-r/--report-out <PATH>` to export a copy to any path or `-` to print it to stdout.
 
 The structure is **not predetermined** - agents organize information as they see fit.
 

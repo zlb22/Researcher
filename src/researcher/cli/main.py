@@ -195,6 +195,12 @@ def cli():
     is_flag=True,
     help="Enable debug mode (verbose logging and full error details)",
 )
+@click.option(
+    "--report-out",
+    "-r",
+    type=str,
+    help="Write final report to PATH (or '-' for stdout)",
+)
 def research(
     topic: str,
     workspace: str | None,
@@ -203,6 +209,7 @@ def research(
     model: str | None,
     no_ui: bool,
     debug: bool,
+    report_out: str | None,
 ):
     """Start a new research project on the given TOPIC.
 
@@ -301,6 +308,45 @@ def research(
                     click.echo(f"  - {filepath}")
             click.echo()
 
+        # Optionally export final report
+        if report_out:
+            try:
+                report_path = workspace_dir / "FINAL_REPORT.md"
+                if not report_path.exists():
+                    # Fallback: try to locate from metadata if available
+                    md_candidates = []
+                    for f in result.metadata.get("output_files", []):
+                        try:
+                            p = Path(f)
+                            if p.suffix.lower() == ".md":
+                                md_candidates.append(Path(f))
+                        except Exception:
+                            continue
+                    if md_candidates:
+                        report_path = md_candidates[0]
+
+                if not report_path.exists():
+                    click.echo(
+                        "Warning: FINAL_REPORT.md not found; nothing to export.",
+                        err=True,
+                    )
+                else:
+                    content = report_path.read_text(encoding="utf-8")
+                    if report_out.strip() == "-":
+                        # Print to stdout
+                        click.echo("\n" + "=" * 60)
+                        click.echo("Final Report (FINAL_REPORT.md)")
+                        click.echo("=" * 60 + "\n")
+                        click.echo(content)
+                        click.echo()
+                    else:
+                        out_path = Path(report_out)
+                        out_path.parent.mkdir(parents=True, exist_ok=True)
+                        out_path.write_text(content, encoding="utf-8")
+                        click.echo(f"Report exported to: {out_path}")
+            except Exception as e:
+                click.echo(f"Failed to export report: {str(e)}", err=True)
+
         # Exit with appropriate code
         sys.exit(0 if result.success else 1)
 
@@ -362,6 +408,12 @@ def research(
     is_flag=True,
     help="Enable debug mode (verbose logging and full error details)",
 )
+@click.option(
+    "--report-out",
+    "-r",
+    type=str,
+    help="Write final report to PATH (or '-' for stdout)",
+)
 def continue_research(
     workspace: str,
     task: str | None,
@@ -370,6 +422,7 @@ def continue_research(
     model: str | None,
     no_ui: bool,
     debug: bool,
+    report_out: str | None,
 ):
     """Continue an existing research project.
 
@@ -473,6 +526,43 @@ def continue_research(
             click.echo(f"\nSuccess: {result.success}")
             click.echo(f"\nSummary:\n{result.content}")
             click.echo()
+
+        # Optionally export final report
+        if report_out:
+            try:
+                report_path = workspace_dir / "FINAL_REPORT.md"
+                if not report_path.exists():
+                    md_candidates = []
+                    for f in result.metadata.get("output_files", []):
+                        try:
+                            p = Path(f)
+                            if p.suffix.lower() == ".md":
+                                md_candidates.append(Path(f))
+                        except Exception:
+                            continue
+                    if md_candidates:
+                        report_path = md_candidates[0]
+
+                if not report_path.exists():
+                    click.echo(
+                        "Warning: FINAL_REPORT.md not found; nothing to export.",
+                        err=True,
+                    )
+                else:
+                    content = report_path.read_text(encoding="utf-8")
+                    if report_out.strip() == "-":
+                        click.echo("\n" + "=" * 60)
+                        click.echo("Final Report (FINAL_REPORT.md)")
+                        click.echo("=" * 60 + "\n")
+                        click.echo(content)
+                        click.echo()
+                    else:
+                        out_path = Path(report_out)
+                        out_path.parent.mkdir(parents=True, exist_ok=True)
+                        out_path.write_text(content, encoding="utf-8")
+                        click.echo(f"Report exported to: {out_path}")
+            except Exception as e:
+                click.echo(f"Failed to export report: {str(e)}", err=True)
 
         # Exit with appropriate code
         sys.exit(0 if result.success else 1)
